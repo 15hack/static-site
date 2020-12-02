@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+	<head>
+    <meta charset="UTF-8">
+    <title>{{p.title}}</title>
+    <link rel="stylesheet" href="/main.css"/>
+	</head>
+	<body>
+		<header>
+			<h1><a href="{{p.url}}">{{p.title}}</a></h1>
+		</header>
+		<article>
+			{{p.content|safe}}
+		</article>
+		<footer>
+		</footer>
+  </body>
+</html>
