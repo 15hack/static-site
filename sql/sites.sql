@@ -1,4 +1,5 @@
 select
+  s.ID id,
   s.title,
   s.type,
   s.url,

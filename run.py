@@ -40,8 +40,8 @@ def page_factory(*args, **kargv):
     p.imgs = sorted(p.imgs)
     return p
 
-def select(file):
-    sql = read(file).strip()
+def select(file, *args, **kargv):
+    sql = read(file, *args, **kargv).strip()
     cols = db.get_cols(sql+" limit 0")
     if "url" in cols:
         sql = "select * from ("+sql+") where url is not null"
@@ -56,9 +56,14 @@ for m in select("sql/media.sql"):
 
 for p in select("sql/pages.sql"):
     path = dwn.urltopath(p.url, file="index.html")
-    j2.save("pages.html", destino=path, p=p)
+    j2.save("page.html", destino=path, p=p)
     for i in p.imgs:
         dwn.dwn(i, dwn.urltopath(i))
+
+for p in list(select("sql/sites.sql")):
+    path = dwn.urltopath(p.url, file="index.html")
+    p.nav = list(select("sql/nav.sql", site=p.id))
+    j2.save("site.html", destino=path, p=p)
 
 db.close()
 dwn.close()

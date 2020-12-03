@@ -9,9 +9,20 @@
 		<header>
 			<h1><a href="{{p.url}}">{{p.title}}</a></h1>
 		</header>
+		{% if p.content %}
 		<article>
 			{{p.content|safe}}
 		</article>
+		{% endif %}
+		{% if p.nav %}
+		<nav>
+			<ul>
+				{% for n in nav %}
+				<li><code>{{n.date}}</code><a href="{{n.url}}">{{n.title}}</a></li>
+				{% endfor %}
+			</ul>
+		</nav>
+		{% endif %}
 		<footer>
 		</footer>
   </body>

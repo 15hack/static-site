@@ -65,9 +65,12 @@ def unzip(fl, path=None, get=None):
         return get
     return path
 
-def read(fl):
+def read(fl, *args, **kargv):
     with open(fl, "r") as f:
-        return f.read()
+        txt = f.read()
+        if args or kargv:
+            txt = txt.format(*args, **kargv)
+        return txt
 
 def readlines(*fls):
     for fl in fls:
