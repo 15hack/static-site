@@ -2,33 +2,71 @@ import json
 import os
 import re
 from datetime import date, datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
+import posixpath
 
 import bs4
 from jinja2 import Environment, FileSystemLoader
+import re
 
 re_br = re.compile(r"<br/>(\s*</)")
+re_sp = re.compile(r"\s+")
 re_emb = re.compile(r"^image/[^;]+;base64,.*", re.IGNORECASE)
+
+def relurl(base, target):
+    base=urlparse(base)
+    trg=urlparse(target)
+    if base.netloc != trg.netloc:
+        return target
+        #raise ValueError('target and base netlocs (%s != %s) do not match' % (base.netloc, target.netloc))
+    base_dir='.'+posixpath.dirname(base.path)
+    target='.'+target[len(trg.scheme)+len(trg.netloc)+3:]
+    return posixpath.relpath(target, start=base_dir)
 
 def myconverter(o):
     if isinstance(o, (datetime, date)):
         return o.__str__()
 
-def toTag(html, *args, root=None):
+def iterhref(tag):
+    for n in tag.findAll(["img", "form", "a", "iframe", "frame", "link", "script"]):
+        attr = "href" if n.name in ("a", "link") else "src"
+        if n.name == "form":
+            attr = "action"
+        val = n.attrs.get(attr)
+        if val is None or re_emb.search(val):
+            continue
+        if not(val.startswith("#") or val.startswith("javascript:")):
+            yield n, attr, val
+
+def select_txt(soup, select, txt, leaf=False):
+    lw = txt.lower() == txt
+    sp = ""
+    if " " in txt:
+        sp = " "
+    for n in soup.select(select):
+        if leaf and len(n.select(":scope *"))>0:
+            continue
+        t = n.get_text()
+        t = re_sp.sub(sp, t)
+        t = t.strip()
+        if lw:
+            t = t.lower()
+        if t == txt:
+            yield n
+
+
+def toTag(html, *args, root=None, torelurl=False):
     if len(args) > 0:
         html = html.format(*args)
     tag = bs4.BeautifulSoup(html, 'html.parser')
     if root:
-        for n in tag.findAll(["img", "form", "a", "iframe", "frame", "link", "script"]):
-            attr = "href" if n.name in ("a", "link") else "src"
-            if n.name == "form":
-                attr = "action"
-            val = n.attrs.get(attr)
-            if val is None or re_emb.search(val):
-                continue
-            if not(val.startswith("#") or val.startswith("javascript:")):
-                val = urljoin(root, val)
-                n.attrs[attr] = val
+        for n, attr, val in iterhref(tag):
+            val = urljoin(root, val)
+            n.attrs[attr] = val
+    if torelurl:
+        for n, attr, val in iterhref(tag):
+            val = relurl(root, val)
+            n.attrs[attr] = val
     return tag
 
 

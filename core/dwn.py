@@ -4,7 +4,7 @@ from urllib.request import urlretrieve
 import os
 from glob import glob
 import requests
-from urllib.parse import unquote, quote
+from urllib.parse import unquote, quote, urlparse, parse_qsl
 from urllib.error import HTTPError, ContentTooShortError
 from .util import readlines
 from os.path import exists, dirname, isfile
@@ -26,38 +26,52 @@ def tuple_url(url):
     ]
     return tuple(r)
 
+def urltopath(url, file=None):
+    url = unquote(url)
+    purl = urlparse(url)
+    url = url.rstrip("/")
+    url = url.split("://", 1)[1]
+    url = url.split("/", 1)
+    if len(url)==1:
+        dom = url[0]
+        url = None
+    else:
+        dom, url = url
+    if dom.startswith("www."):
+        dom = dom[4:]
+    dom = dom.split(".")
+    if len(dom)==2:
+        dom.insert(0, "__ROOT__")
+    path=[
+        ".".join(dom[-2:]),
+    ] + list(reversed(dom[:-2]))
+    lpath = len(path)
+    if purl.query:
+        qr = parse_qsl(purl.query)
+        qr = dict(qr)
+        if purl.path.endswith("/viewtopic.php"):
+            for k in ("p", "t", "f"):
+                if k in qr:
+                    path.append(purl.path)
+                    path.append(k+"="+qr[k])
+                    break
+        if purl.path.endswith("/download/file.php") and "id" in qr:
+            path.append(purl.path)
+            path.append("id="+qr["id"])
+    if len(path)== lpath and url:
+        url = url.replace("?", "/__QUERY__/")
+        path.append(url)
+    if file:
+        path.append(file)
+    path = "/".join(path)
+    path = path.replace("//", "/")
+    return path
+
 class DWN:
     def __init__(self, out):
         self.log_404 = "log/404.txt"
         self.e404 = set(readlines(self.log_404))
         self.out = out
-
-    def urltopath(self, url, file=None):
-        url = unquote(url)
-        url = url.rstrip("/")
-        url = url.split("://", 1)[1]
-        url = url.split("/", 1)
-        if len(url)==1:
-            dom = url[0]
-            url = None
-        else:
-            dom, url = url
-        if dom.startswith("www."):
-            dom = dom[4:]
-        dom = dom.split(".")
-        if len(dom)==2:
-            dom.insert(0, "__ROOT__")
-        path=[
-            ".".join(dom[-2:]),
-        ] + list(reversed(dom[:-2]))
-        if url:
-            url = url.replace("?", "/__QUERY__/")
-            url = url.replace("//", "/")
-            path.append(url)
-        if file:
-            path.append(file)
-        path = "/".join(path)
-        return path
 
     def _download(self, source, target):
         if source in self.e404:

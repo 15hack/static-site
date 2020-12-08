@@ -6,6 +6,7 @@ from (
   select
     site,
     title,
+    null description,
     date,
     url
   from
@@ -14,10 +15,29 @@ from (
   select
     site,
     title,
+    null description,
     date,
     url
   from
     wk_pages
+  union
+  select
+    site,
+    title,
+    null description,
+    date,
+    url
+  from
+    phpbb_topics
+  union
+  select
+    site,
+    ID title,
+    description,
+    date,
+    url
+  from
+    mailman_lists
 ) tt
 where site={site}
 order by date desc

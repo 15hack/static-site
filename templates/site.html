@@ -17,8 +17,13 @@
 		{% if p.nav %}
 		<nav>
 			<ul>
-				{% for n in nav %}
-				<li><code>{{n.date}}</code><a href="{{n.url}}">{{n.title}}</a></li>
+				{% for n in p.nav %}
+				<li>
+					<code>{{n.date}}</code> <a href="{{n.url}}">{{n.title}}</a>
+					{% if n.description %}
+						<small>{{n.description}}</small>
+					{% endif %}
+				</li>
 				{% endfor %}
 			</ul>
 		</nav>

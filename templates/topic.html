@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+	<head>
+    <meta charset="UTF-8">
+    <title>{{p.title}}</title>
+    <link rel="stylesheet" href="/main.css"/>
+	</head>
+	<body>
+		<header>
+			<h1><a href="{{p.url}}">{{p.title}}</a></h1>
+		</header>
+			{% for i in p.posts %}
+			<article>
+				<h2>{{i.title}}</h2>
+				<p>{{i.date}} - {{i.author}}:</p>
+				{{i.content}}
+				{% if i.media %}
+					<p>Adjuntos:</p>
+					<ul>
+						{% for m in i.media %}
+						<li>
+							<a href="{{m.url}}">{{m.file}}</a>
+							{% if m.comment %}
+							<small>{{m.comment}}</small>
+							{% endif %}
+						</li>
+						{% endfor %}
+					</ul>
+				{% endif %}
+			</article>
+			{% endfor %}
+		<footer>
+		</footer>
+  </body>
+</html>
