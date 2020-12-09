@@ -14,6 +14,7 @@ import re
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
+dwn = DWN("_out/")
 
 if not isfile("sites.db"):
     asset = dwn.getAsset("15hack/web-backup sites.7z")
@@ -30,7 +31,7 @@ re_sp = re.compile(r"\s+")
 def https_to_http(html, *args, **kargv):
     soup = toTag(html)
     for n, attr, val in iterhref(soup):
-        if val.lower().startswith("https://"):
+        if not val.lower().startswith("https://"):
             continue
         url = val.split("://", 1)
         url = url[1]
@@ -40,7 +41,6 @@ def https_to_http(html, *args, **kargv):
                 break
     return str(soup)
 
-dwn = DWN("_out/")
 j2 = Jnj2("templates/", "_out/", post=https_to_http)
 
 def page_factory(*args, **kargv):

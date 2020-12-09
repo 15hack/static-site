@@ -9,14 +9,6 @@ class Nginx:
         self.db = db
         self.root = realpath(root)
         self.config = open(config, "w")
-        self.write('''
-            server {
-                listen 443;
-                server_name _;
-                # rewrite ^(.*) http://$host$1 permanent;
-                return 301 http://$http_host$request_uri;
-            }
-        ''')
         doms=set()
         for url, in db.select("select url from sites order by id"):
             url = unquote(url)
@@ -29,20 +21,44 @@ class Nginx:
             root = ".".join(root)
             doms.add(root)
         doms = sorted(doms, key=lambda x:tuple(reversed(x.split("."))))
+        all_doms = doms + ["*."+i for i in doms]
+        self.write('''
+            server {
+                listen 443 ssl;
+                server_name %s;
+                # rewrite ^(.*) http://$host$1 permanent;
+                # https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-nginx-in-ubuntu-16-04
+                ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
+                ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
+                return 301 http://$http_host$request_uri;
+            }
+        ''' % " ".join(all_doms))
         for site in doms:
             path = urltopath("http://"+site)
+            if site == "tomalatele.tv":
+                self.write('''
+                    server {
+                        listen 80;
+                        server_name {site} www.{site};
+                        root {root}/{path};
+                        location ~ ^/$ {
+                            return 301 /web/;
+                        }
+                        include {root}/common_config.nginx;
+                    }
+                ''', site=site, root=self.root, path=path)
+            else:
+                self.write('''
+                    server {
+                        listen 80;
+                        server_name {site} www.{site};
+                        root {root}/{path};
+                        include {root}/common_config.nginx;
+                    }
+                ''', site=site, root=self.root, path=path)
             self.write('''
                 server {
                     listen 80;
-                    server_name {site} www.{site};
-                    root {root}/{path};
-                    include {root}/common_config.nginx;
-                }
-            ''', site=site, root=self.root, path=path)
-            self.write('''
-                server {
-                    listen 80;
-                    listen 443;
                     server_name ~^(www\.)?(?<subdomain>.+)\.{site}$;
                     root {root}/{path}/$subdomain;
                     include {root}/common_config.nginx;
