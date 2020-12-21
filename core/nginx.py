@@ -2,25 +2,99 @@ from textwrap import dedent
 from .dwn import urltopath
 from urllib.parse import unquote, quote, urlparse, parse_qsl
 from bunch import Bunch
-from os.path import realpath
+from os.path import realpath, dirname
+from os import makedirs
+import re
+
+def get_dom(url):
+    url = unquote(url)
+    purl = urlparse(url)
+    dom = purl.netloc
+    if dom.startswith("www."):
+        dom = dom[4:]
+    return dom
 
 class Nginx:
-    def __init__(self, db, config, root):
+    def __init__(self, db, root):
         self.db = db
         self.root = realpath(root)
-        self.config = open(config, "w")
+        self.files = {}
         doms=set()
-        for url, in db.select("select url from sites order by id"):
-            url = unquote(url)
-            purl = urlparse(url)
-            dom = purl.netloc
-            if dom.startswith("www."):
-                dom = dom[4:]
+        ng_include={}
+        for url, in db.select("select url from sites where type!='phpbb'order by id"):
+            dom = get_dom(url)
             root = dom.split(".")
             root = root[-2:]
             root = ".".join(root)
             doms.add(root)
         doms = sorted(doms, key=lambda x:tuple(reversed(x.split("."))))
+
+        for site, url in db.to_list("select id, url from sites where type='phpbb' order by id"):
+            dom = get_dom(url)
+            url_path = urlparse(url)
+            if url_path.path:
+                url_path = url_path.path
+            else:
+                url_path = ""
+            root = str(dom)
+            if root not in doms:
+                doms.insert(0, root)
+            ng_file = get_dom(url)+url_path
+            ng_file = ng_file.rstrip("/")
+            ng_file = ng_file.replace("/", "_")
+            ng_file = "phpbb/"+ng_file
+            if root not in ng_include:
+                ng_include[root]=[]
+            ng_include[root].append(ng_file)
+
+            path = urltopath(url)
+            media = []
+            for id, m, file in db.to_list("select ID, url, file from phpbb_media where site="+str(site)):
+                file_path = urltopath(m, file=file)
+                name = file_path.split("/download/file.php/", 1)[-1]
+                media.append('''
+                    if ($args ~* ".*id=%(id)s") {
+                        set $args '';
+                        set $file_name "%(file)s";
+                        set $file_path "%(file_path)s";
+                    }
+                    if ($args ~* ".*id=%(id)s[^0-9].*") {
+                        set $args '';
+                        set $file_name "%(file)s";
+                        set $file_path "%(file_path)s";
+                    }
+                ''' % {"id":id, "file": file, "path": name, "file_path":file_path})
+            phpbb='''
+                location ~ ^%(url_path)s/viewtopic\\.php/?.*$ {
+                    if ($args ~* ".*(p=[0-9]+).*") {
+                        set $mid $1;
+                        set $args '';
+                        rewrite ^(.*/viewtopic\\.php).* $1/$mid/ last;
+                    }
+                    if ($args ~* ".*(t=[0-9]+).*") {
+                        set $mid $1;
+                        set $args '';
+                        rewrite ^(.*/viewtopic\\.php).* $1/$mid/ last;
+                    }
+                    if ($args ~* ".*(f=[0-9]+).*") {
+                        set $mid $1;
+                        set $args '';
+                        rewrite ^(.*/viewtopic\\.php).* $1/$mid/ last;
+                    }
+                }
+            ''' % {"url_path": url_path}
+            if media:
+                phpbb=phpbb+('''
+                location ~ ^%(url_path)s/download/file\\.php/?.*$ {
+                    set $file_name 'not found';
+                    set $file_path $document_root$uri;
+                    %(media)s
+                    add_header Content-disposition 'attachment; filename="$file_name"';
+                    alias "%(root)s/web/$file_path";
+                }
+                ''') % {"url_path": url_path, "media": "\n".join(media), "root":self.root}
+            self.write(phpbb, site=dom, root=self.root, path=path, file=ng_file)
+
         all_doms = doms + ["*."+i for i in doms]
         self.write('''
             server {
@@ -34,41 +108,64 @@ class Nginx:
             }
         ''' % " ".join(all_doms))
         for site in doms:
+            include = ng_include.get(site, ["query.nginx"])
+            if include:
+                include = "\n                        ".join(
+                    "include {root}/nginx/%s;" % i for i in include
+                )
             path = urltopath("http://"+site)
             if site == "tomalatele.tv":
                 self.write('''
                     server {
                         listen 80;
+                        index index.html;
                         server_name {site} www.{site};
-                        root {root}/{path};
+                        root {root}/web/{path};
+                        location /main.css {
+                            alias {root}/web/main.css;
+                        }
+                        %s
                         location ~ ^/$ {
                             return 301 /web/;
                         }
-                        include {root}/common_config.nginx;
                     }
-                ''', site=site, root=self.root, path=path)
+                ''' % include, site=site, root=self.root, path=path)
             else:
                 self.write('''
                     server {
                         listen 80;
+                        index index.html;
                         server_name {site} www.{site};
-                        root {root}/{path};
-                        include {root}/common_config.nginx;
+                        root {root}/web/{path};
+                        location /main.css {
+                            alias {root}/web/main.css;
+                        }
+                        %s
                     }
-                ''', site=site, root=self.root, path=path)
-            self.write('''
-                server {
-                    listen 80;
-                    server_name ~^(www\.)?(?<subdomain>.+)\.{site}$;
-                    root {root}/{path}/$subdomain;
-                    include {root}/common_config.nginx;
-                }
-            ''', site=site, root=self.root, path=path.rsplit("/", 1)[0])
+                ''' % include, site=site, root=self.root, path=path)
+            if len(site.split("."))==2:
+                self.write('''
+                    server {
+                        listen 80;
+                        index index.html;
+                        server_name ~^(www\.)?(?<subdomain>.+)\.{site}$;
+                        root {root}/web/{path}/$subdomain;
+                        location /main.css {
+                            alias {root}/web/main.css;
+                        }
+                        %s
+                    }
+                ''' % include, site=site, root=self.root, path=path.rsplit("/", 1)[0])
 
     def close(self):
-        self.config.close()
+        for f in self.files.values():
+            f.close()
 
-    def write(self, txt, *args, end="\n", **kargv):
+    def write(self, txt, *args, end="\n", file="sites.nginx", **kargv):
+        file = self.root + "/nginx/" + file
+        if file not in self.files:
+            makedirs(dirname(file), exist_ok=True)
+            self.files[file]=open(file, "w")
         if args or kargv:
             flag = "---------"
             txt = txt.replace("{\n", "["+flag)
@@ -77,10 +174,11 @@ class Nginx:
             txt = txt.replace("["+flag, "{\n")
             txt = txt.replace("]"+flag, "}\n")
         txt = dedent(txt).strip()
-        self.config.write(txt+end)
+        txt = "\n".join(l for l in txt.split("\n") if l.strip())
+        self.files[file].write(txt+end)
 
 if __name__ == "__main__":
     from .lite import DBLite, bunch_factory
     db = DBLite("sites.db", readonly=True)
-    n = Nginx(db, "_out/sites.nginx", "_out/")
+    n = Nginx(db, "_out/")
     n.close()

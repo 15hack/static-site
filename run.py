@@ -2,7 +2,7 @@
 from core.lite import DBLite, bunch_factory
 from core.util import read, inSite, unzip
 from core.nginx import Nginx
-from core.dwn import DWN, urltopath
+from core.dwn import DWN, urltopath, FakeDWN
 from core.j2 import Jnj2, toTag, relurl, select_txt, iterhref
 from os.path import exists, dirname, isfile
 from os import makedirs, rename
@@ -14,7 +14,7 @@ import re
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-dwn = DWN("_out/")
+dwn = FakeDWN("_out/web/")
 
 if not isfile("sites.db"):
     asset = dwn.getAsset("15hack/web-backup sites.7z")
@@ -41,10 +41,15 @@ def https_to_http(html, *args, **kargv):
                 break
     return str(soup)
 
-j2 = Jnj2("templates/", "_out/", post=https_to_http)
+j2 = Jnj2("templates/", "_out/web/", post=https_to_http)
 
 def page_factory(*args, **kargv):
     p = bunch_factory(*args, **kargv)
+    if "title" in p and "url" in p and p.title is None:
+        p.title = p.url.split("://", 1)[-1]
+        p.title = p.title.rstrip("/?&")
+        if p.title.startswith("www."):
+            p.title = p.title[4:]
     p.imgs = set()
     if "bbcode" in p and p.bbcode:
         p.content = bbcode.render_html(p.bbcode)
@@ -99,7 +104,7 @@ for p in list(db.select("select * from phpbb_topics", row_factory=bunch_factory)
     j2.save("topic.html", destino=path, p=p)
 
 
-n = Nginx(db, "_out/sites.nginx", "_out/")
+n = Nginx(db, "_out/")
 n.close()
 db.close()
 dwn.close()

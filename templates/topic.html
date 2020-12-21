@@ -7,7 +7,7 @@
 	</head>
 	<body>
 		<header>
-			<h1><a href="{{p.url}}">{{p.title}}</a></h1>
+			{% include 'header.html' %}
 		</header>
 			{% for i in p.posts %}
 			<article>
@@ -30,6 +30,7 @@
 			</article>
 			{% endfor %}
 		<footer>
+			{% include 'footer.html' %}
 		</footer>
   </body>
 </html>

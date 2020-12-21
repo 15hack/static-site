@@ -1,5 +1,8 @@
 _out/*
 *.db
+!_out/web/
+_out/web/*
+!_out/web/main.css
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

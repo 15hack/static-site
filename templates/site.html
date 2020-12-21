@@ -8,7 +8,7 @@
 	<body>
 		{% if p.title %}
 		<header>
-			<h1><a href="{{p.url}}">{{p.title}}</a></h1>
+			{% include 'header.html' %}
 		</header>
 		{% endif %}
 		{% if p.content %}
@@ -31,6 +31,7 @@
 		</nav>
 		{% endif %}
 		<footer>
+			{% include 'footer.html' %}
 		</footer>
   </body>
 </html>

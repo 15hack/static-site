@@ -69,12 +69,16 @@ def toTag(html, *args, root=None, torelurl=False):
             n.attrs[attr] = val
     return tag
 
+def webarchive(url):
+    url = url.split("://")[-1]
+    return "https://web.archive.org/web/"+url
 
 class Jnj2():
 
     def __init__(self, origen, destino, pre=None, post=None, **kargv):
         self.j2_env = Environment(
             loader=FileSystemLoader(origen), trim_blocks=True)
+        self.j2_env.filters["webarchive"] = webarchive
         for k, v in kargv.items():
             if callable(v):
                 self.j2_env.filters[k] = v

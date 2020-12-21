@@ -67,6 +67,14 @@ def urltopath(url, file=None):
     path = path.replace("//", "/")
     return path
 
+class FakeDWN:
+    def __init__(*args, **kargv):
+        pass
+    def dwn(self,*args, **kargv):
+        pass
+    def close(self, *args, **kargv):
+        pass
+
 class DWN:
     def __init__(self, out):
         self.log_404 = "log/404.txt"
