@@ -14,7 +14,7 @@ import re
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-dwn = FakeDWN("_out/web/")
+dwn = DWN("_out/web/")
 
 if not isfile("sites.db"):
     asset = dwn.getAsset("15hack/web-backup sites.7z")
