@@ -28,6 +28,34 @@ class Nginx:
             root = ".".join(root)
             doms.add(root)
         doms = sorted(doms, key=lambda x:tuple(reversed(x.split("."))))
+        all_doms = doms + ["*."+i for i in doms]
+
+        for site, url in db.to_list('''
+                select
+                    id, url
+                from
+                    sites
+                where
+                    type='wp' and
+                    id in (
+                        select site from wp_posts
+                        where url like '%?p=%' or url like '%?page_id=%'
+                    )
+                order
+                    by id
+            '''):
+            dom = get_dom(url)
+            url_path = urlparse(url)
+            if url_path.path:
+                url_path = url_path.path
+            else:
+                url_path = ""
+            root = str(dom)
+            if root not in doms:
+                doms.insert(0, root)
+            if root not in ng_include:
+                ng_include[root]=[]
+            ng_include[root].append("wp.nginx")
 
         for site, url in db.to_list("select id, url from sites where type='phpbb' order by id"):
             dom = get_dom(url)
@@ -95,7 +123,10 @@ class Nginx:
                 ''') % {"url_path": url_path, "media": "\n".join(media), "root":self.root}
             self.write(phpbb, site=dom, root=self.root, path=path, file=ng_file)
 
-        all_doms = doms + ["*."+i for i in doms]
+        l_dom = max(len(d) for d in doms)
+        l_dom = l_dom*2+4
+        if l_dom>64:
+            self.write("server_names_hash_bucket_size %s;" % l_dom)
         self.write('''
             server {
                 listen 443 ssl;
@@ -108,8 +139,8 @@ class Nginx:
             }
         ''' % " ".join(all_doms))
         for site in doms:
-            include = ng_include.get(site, ["query.nginx"])
-            if include:
+            include = ng_include.get(site, "")
+            if isinstance(include, list):
                 include = "\n                        ".join(
                     "include {root}/nginx/%s;" % i for i in include
                 )

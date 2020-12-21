@@ -29,7 +29,7 @@ def tuple_url(url):
 def urltopath(url, file=None):
     url = unquote(url)
     purl = urlparse(url)
-    url = url.rstrip("/")
+    url = url.rstrip("/?#")
     url = url.split("://", 1)[1]
     url = url.split("/", 1)
     if len(url)==1:
@@ -46,7 +46,9 @@ def urltopath(url, file=None):
         ".".join(dom[-2:]),
     ] + list(reversed(dom[:-2]))
     lpath = len(path)
-    if purl.query:
+    if purl.query and purl.query.isdigit():
+        url = url.split("?", 1)[0]
+    elif purl.query:
         qr = parse_qsl(purl.query)
         qr = dict(qr)
         if purl.path.endswith("/viewtopic.php"):
@@ -55,9 +57,14 @@ def urltopath(url, file=None):
                     path.append(purl.path)
                     path.append(k+"="+qr[k])
                     break
-        if purl.path.endswith("/download/file.php") and "id" in qr:
+        elif purl.path.endswith("/download/file.php") and "id" in qr:
             path.append(purl.path)
             path.append("id="+qr["id"])
+        elif "p" in qr or "page_id" in qr:
+            id = qr.get("p", qr.get("page_id"))
+            if id is not None and id.isdigit():
+                path.append(purl.path)
+                path.append("p="+id)
     if len(path)== lpath and url:
         url = url.replace("?", "/__QUERY__/")
         path.append(url)

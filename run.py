@@ -14,7 +14,9 @@ import re
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-dwn = DWN("_out/web/")
+dwn = FakeDWN("_out/web/")
+if len(sys.argv)==2 and sys.argv[1]=="--dwn":
+    dwn = DWN("_out/web/")
 
 if not isfile("sites.db"):
     asset = dwn.getAsset("15hack/web-backup sites.7z")
@@ -58,10 +60,12 @@ def page_factory(*args, **kargv):
     else:
         soup = toTag(p.content, root=p.url, torelurl=False)
         for img in soup.select("img"):
-            img = img.attrs.get("src")
-            if inSite(img, *SITES):
-                img = re_width.sub("", img)
-                p.imgs.add(img)
+            src = img.attrs.get("src")
+            if inSite(src, *SITES):
+                if "srcset" in img.attrs:
+                    del img.attrs["srcset"]
+                src = re_width.sub("", src)
+                p.imgs.add(src)
         for n in select_txt(soup, "span.mw-editsection", "[editar]"):
             n.extract()
         #soup = toTag(p.content, root=p.url, torelurl=True)
@@ -102,7 +106,6 @@ for p in list(db.select("select * from phpbb_topics", row_factory=bunch_factory)
     for i in p.posts:
         i.media = list(select("sql/phpbb_media.sql", site=p.site, topic=p.ID, post=i.ID))
     j2.save("topic.html", destino=path, p=p)
-
 
 n = Nginx(db, "_out/")
 n.close()
