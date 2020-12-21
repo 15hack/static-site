@@ -1,24 +1,26 @@
-import py7zlib
-import tempfile
-from urllib.request import urlretrieve
 import os
-from glob import glob
+import tempfile
+from os import makedirs
+from os.path import dirname, exists
+from urllib.error import ContentTooShortError, HTTPError
+from urllib.parse import parse_qsl, quote, unquote, urlparse
+from urllib.request import urlretrieve
+
+import py7zlib
 import requests
-from urllib.parse import unquote, quote, urlparse, parse_qsl
-from urllib.error import HTTPError, ContentTooShortError
+
 from .util import readlines
-from os.path import exists, dirname, isfile
-from os import makedirs, rename
+
 
 def tuple_url(url):
     prc = None
     slp = url.split("://", 1)
-    if len(slp)==2 and slp[0].lower() in ("http", "https"):
+    if len(slp) == 2 and slp[0].lower() in ("http", "https"):
         prc = slp[0].lower()
         url = slp[1]
     slp = url.split("/", 1)
     dom = slp[0]
-    url = slp[1] if len(slp)>1 else None
+    url = slp[1] if len(slp) > 1 else None
     r = [
         tuple(reversed(dom.split("."))),
         url,
@@ -26,13 +28,14 @@ def tuple_url(url):
     ]
     return tuple(r)
 
+
 def urltopath(url, file=None):
     url = unquote(url)
     purl = urlparse(url)
     url = url.rstrip("/?#")
     url = url.split("://", 1)[1]
     url = url.split("/", 1)
-    if len(url)==1:
+    if len(url) == 1:
         dom = url[0]
         url = None
     else:
@@ -40,9 +43,9 @@ def urltopath(url, file=None):
     if dom.startswith("www."):
         dom = dom[4:]
     dom = dom.split(".")
-    if len(dom)==2:
+    if len(dom) == 2:
         dom.insert(0, "__ROOT__")
-    path=[
+    path = [
         ".".join(dom[-2:]),
     ] + list(reversed(dom[:-2]))
     lpath = len(path)
@@ -65,7 +68,7 @@ def urltopath(url, file=None):
             if id is not None and id.isdigit():
                 path.append(purl.path)
                 path.append("p="+id)
-    if len(path)== lpath and url:
+    if len(path) == lpath and url:
         url = url.replace("?", "/__QUERY__/")
         path.append(url)
     if file:
@@ -74,13 +77,17 @@ def urltopath(url, file=None):
     path = path.replace("//", "/")
     return path
 
+
 class FakeDWN:
     def __init__(*args, **kargv):
         pass
-    def dwn(self,*args, **kargv):
+
+    def dwn(self, *args, **kargv):
         pass
+
     def close(self, *args, **kargv):
         pass
+
 
 class DWN:
     def __init__(self, out):

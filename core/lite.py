@@ -1,16 +1,14 @@
 import os
 import re
 import sqlite3
+from subprocess import DEVNULL, STDOUT, check_call
 from textwrap import dedent
-from PIL import Image
 
 import unidecode
 import yaml
 from bunch import Bunch
-from datetime import datetime
-from subprocess import DEVNULL, STDOUT, check_call
-import tempfile
-from urllib.request import urlretrieve
+from PIL import Image
+
 from .util import read
 
 re_sp = re.compile(r"\s+")
@@ -19,18 +17,22 @@ sqlite3.register_converter("BOOLEAN", lambda x: int(x) > 0)
 #sqlite3.register_converter("DATE", lambda x: datetime.strptime(str(x), "%Y-%m-%d").date())
 sqlite3.enable_callback_tracebacks(True)
 
+
 def dict_factory(cursor, row):
     d = {}
     for idx, col in enumerate(cursor.description):
         d[col[0]] = row[idx]
     return d
 
+
 def bunch_factory(cursor, row):
     d = dict_factory(cursor, row)
     return Bunch(**d)
 
+
 def one_factory(cursor, row):
     return row[0]
+
 
 def ResultIter(cursor, size=1000):
     while True:
@@ -39,6 +41,7 @@ def ResultIter(cursor, size=1000):
             break
         for result in results:
             yield result
+
 
 def save(file, content):
     if file and content:
@@ -56,12 +59,13 @@ class CaseInsensitiveDict(dict):
 
     def do_null(self):
         for k in self.keys():
-            self[k]=None
+            self[k] = None
 
     def rm_null(self):
         for k, v in list(self.items()):
             if v is None:
                 del self[k]
+
 
 class DBLite:
     def __init__(self, file, readonly=False, overwrite=False):
@@ -107,7 +111,6 @@ class DBLite:
         cols = tuple(col[0] for col in cursor.description)
         cursor.close()
         return cols
-
 
     def load_tables(self):
         self.tables.do_null()
@@ -201,7 +204,7 @@ class DBLite:
 
     def select(self, sql, *args, row_factory=None, **kargv):
         sql = self._build_select(sql)
-        self.con.row_factory=row_factory
+        self.con.row_factory = row_factory
         cursor = self.con.cursor()
         if args:
             cursor.execute(sql, args)
@@ -210,13 +213,13 @@ class DBLite:
         for r in ResultIter(cursor):
             yield r
         cursor.close()
-        self.con.row_factory=None
+        self.con.row_factory = None
 
     def to_list(self, *args, **kargv):
-        r=[]
-        flag=False
+        r = []
+        flag = False
         for i in self.select(*args, **kargv):
-            flag = flag or (isinstance(i, tuple) and len(i)==1)
+            flag = flag or (isinstance(i, tuple) and len(i) == 1)
             if flag:
                 i = i[0]
             r.append(i)
@@ -224,15 +227,15 @@ class DBLite:
 
     def one(self, sql, row_factory=None):
         sql = self._build_select(sql)
-        self.con.row_factory=row_factory
+        self.con.row_factory = row_factory
         cursor = self.con.cursor()
         cursor.execute(sql)
         r = cursor.fetchone()
         cursor.close()
-        self.con.row_factory=None
+        self.con.row_factory = None
         if not r:
             return None
-        if row_factory is None and len(r)==1:
+        if row_factory is None and len(r) == 1:
             return r[0]
         return r
 

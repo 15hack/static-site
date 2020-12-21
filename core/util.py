@@ -1,13 +1,11 @@
-import py7zlib
-import tempfile
-from subprocess import DEVNULL, STDOUT, check_call
-from urllib.request import urlretrieve
 import os
+import tempfile
 from glob import glob
-import yaml
+
+import py7zlib
 import requests
-from urllib.parse import unquote, quote
-from urllib.error import HTTPError, ContentTooShortError
+import yaml
+
 
 def inSite(url, *sites):
     if not url:
@@ -19,11 +17,13 @@ def inSite(url, *sites):
             return True
     return False
 
+
 def get_yml(path):
     if not os.path.isfile(path):
         return []
     with open(path, "r") as f:
         return list(yaml.load_all(f, Loader=yaml.FullLoader))
+
 
 def find_value(o, *args, avoid=None):
     if avoid is None:
@@ -37,15 +37,17 @@ def find_value(o, *args, avoid=None):
         if a not in avoid:
             return a
 
+
 def chunks(arr, size):
-    r=[]
+    r = []
     for a in arr:
         r.append(a)
-        if len(r)==size:
+        if len(r) == size:
             yield r
-            r=[]
+            r = []
     if r:
         yield r
+
 
 def unzip(fl, path=None, get=None):
     if path is None:
@@ -60,10 +62,11 @@ def unzip(fl, path=None, get=None):
                 outfile.write(f7z.getmember(name).read())
     if get is not None:
         get = sorted(glob(path+"/"+get))
-        if len(get)==1:
+        if len(get) == 1:
             return get[0]
         return get
     return path
+
 
 def read(fl, *args, **kargv):
     with open(fl, "r") as f:
@@ -71,6 +74,7 @@ def read(fl, *args, **kargv):
         if args or kargv:
             txt = txt.format(*args, **kargv)
         return txt
+
 
 def readlines(*fls):
     for fl in fls:

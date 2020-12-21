@@ -1,31 +1,33 @@
 import json
 import os
+import posixpath
 import re
 from datetime import date, datetime
 from urllib.parse import urljoin, urlparse
-import posixpath
 
 import bs4
 from jinja2 import Environment, FileSystemLoader
-import re
 
 re_br = re.compile(r"<br/>(\s*</)")
 re_sp = re.compile(r"\s+")
 re_emb = re.compile(r"^image/[^;]+;base64,.*", re.IGNORECASE)
 
+
 def relurl(base, target):
-    base=urlparse(base)
-    trg=urlparse(target)
+    base = urlparse(base)
+    trg = urlparse(target)
     if base.netloc != trg.netloc:
         return target
         #raise ValueError('target and base netlocs (%s != %s) do not match' % (base.netloc, target.netloc))
-    base_dir='.'+posixpath.dirname(base.path)
-    target='.'+target[len(trg.scheme)+len(trg.netloc)+3:]
+    base_dir = '.'+posixpath.dirname(base.path)
+    target = '.'+target[len(trg.scheme)+len(trg.netloc)+3:]
     return posixpath.relpath(target, start=base_dir)
+
 
 def myconverter(o):
     if isinstance(o, (datetime, date)):
         return o.__str__()
+
 
 def iterhref(tag):
     for n in tag.findAll(["img", "form", "a", "iframe", "frame", "link", "script"]):
@@ -38,13 +40,14 @@ def iterhref(tag):
         if not(val.startswith("#") or val.startswith("javascript:")):
             yield n, attr, val
 
+
 def select_txt(soup, select, txt, leaf=False):
     lw = txt.lower() == txt
     sp = ""
     if " " in txt:
         sp = " "
     for n in soup.select(select):
-        if leaf and len(n.select(":scope *"))>0:
+        if leaf and len(n.select(":scope *")) > 0:
             continue
         t = n.get_text()
         t = re_sp.sub(sp, t)
@@ -69,9 +72,11 @@ def toTag(html, *args, root=None, torelurl=False):
             n.attrs[attr] = val
     return tag
 
+
 def webarchive(url):
     url = url.split("://")[-1]
     return "https://web.archive.org/web/"+url
+
 
 class Jnj2():
 

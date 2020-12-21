@@ -1,10 +1,12 @@
-from textwrap import dedent
-from .dwn import urltopath
-from urllib.parse import unquote, quote, urlparse, parse_qsl
-from bunch import Bunch
-from os.path import realpath, dirname
 from os import makedirs
-import re
+from os.path import dirname, realpath
+from textwrap import dedent
+from urllib.parse import unquote, urlparse
+
+from bunch import Bunch
+
+from .dwn import urltopath
+
 
 def get_dom(url):
     url = unquote(url)
@@ -14,20 +16,21 @@ def get_dom(url):
         dom = dom[4:]
     return dom
 
+
 class Nginx:
     def __init__(self, db, root):
         self.db = db
         self.root = realpath(root)
         self.files = {}
-        doms=set()
-        ng_include={}
+        doms = set()
+        ng_include = {}
         for url, in db.select("select url from sites where type!='phpbb'order by id"):
             dom = get_dom(url)
             root = dom.split(".")
             root = root[-2:]
             root = ".".join(root)
             doms.add(root)
-        doms = sorted(doms, key=lambda x:tuple(reversed(x.split("."))))
+        doms = sorted(doms, key=lambda x: tuple(reversed(x.split("."))))
         all_doms = doms + ["*."+i for i in doms]
 
         for site, url in db.to_list('''
@@ -54,7 +57,7 @@ class Nginx:
             if root not in doms:
                 doms.insert(0, root)
             if root not in ng_include:
-                ng_include[root]=[]
+                ng_include[root] = []
             ng_include[root].append("wp.nginx")
 
         for site, url in db.to_list("select id, url from sites where type='phpbb' order by id"):
@@ -72,7 +75,7 @@ class Nginx:
             ng_file = ng_file.replace("/", "_")
             ng_file = "phpbb/"+ng_file
             if root not in ng_include:
-                ng_include[root]=[]
+                ng_include[root] = []
             ng_include[root].append(ng_file)
 
             path = urltopath(url)
@@ -91,8 +94,8 @@ class Nginx:
                         set $file_name "%(file)s";
                         set $file_path "%(file_path)s";
                     }
-                ''' % {"id":id, "file": file, "path": name, "file_path":file_path})
-            phpbb='''
+                ''' % {"id": id, "file": file, "path": name, "file_path": file_path})
+            phpbb = '''
                 location ~ ^%(url_path)s/viewtopic\\.php/?.*$ {
                     if ($args ~* ".*(p=[0-9]+).*") {
                         set $mid $1;
@@ -112,7 +115,7 @@ class Nginx:
                 }
             ''' % {"url_path": url_path}
             if media:
-                phpbb=phpbb+('''
+                phpbb = phpbb+('''
                 location ~ ^%(url_path)s/download/file\\.php/?.*$ {
                     set $file_name 'not found';
                     set $file_path $document_root$uri;
@@ -120,12 +123,13 @@ class Nginx:
                     add_header Content-disposition 'attachment; filename="$file_name"';
                     alias "%(root)s/web/$file_path";
                 }
-                ''') % {"url_path": url_path, "media": "\n".join(media), "root":self.root}
-            self.write(phpbb, site=dom, root=self.root, path=path, file=ng_file)
+                ''') % {"url_path": url_path, "media": "\n".join(media), "root": self.root}
+            self.write(phpbb, site=dom, root=self.root,
+                       path=path, file=ng_file)
 
         l_dom = max(len(d) for d in doms)
         l_dom = l_dom*2+4
-        if l_dom>64:
+        if l_dom > 64:
             self.write("server_names_hash_bucket_size %s;" % l_dom)
         self.write('''
             server {
@@ -174,7 +178,7 @@ class Nginx:
                         %s
                     }
                 ''' % include, site=site, root=self.root, path=path)
-            if len(site.split("."))==2:
+            if len(site.split(".")) == 2:
                 self.write('''
                     server {
                         listen 80;
@@ -196,7 +200,7 @@ class Nginx:
         file = self.root + "/nginx/" + file
         if file not in self.files:
             makedirs(dirname(file), exist_ok=True)
-            self.files[file]=open(file, "w")
+            self.files[file] = open(file, "w")
         if args or kargv:
             flag = "---------"
             txt = txt.replace("{\n", "["+flag)
@@ -207,6 +211,7 @@ class Nginx:
         txt = dedent(txt).strip()
         txt = "\n".join(l for l in txt.split("\n") if l.strip())
         self.files[file].write(txt+end)
+
 
 if __name__ == "__main__":
     from .lite import DBLite, bunch_factory
