@@ -3,6 +3,9 @@ _out/*
 !_out/web/
 _out/web/*
 !_out/web/main.css
+!_out/nginx/
+_out/nginx/*
+!_out/nginx/wp.nginx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

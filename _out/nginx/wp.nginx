@@ -1,0 +1,10 @@
+if ($args ~* ".*p=([0-9]+).*") {
+    set $mid $1;
+    set $args '';
+    rewrite ^(.*)$ $1/p=$mid/ last;
+}
+if ($args ~* ".*page_id=([0-9]+).*") {
+    set $mid $1;
+    set $args '';
+    rewrite ^(.*)$ $1/p=$mid/ last;
+}

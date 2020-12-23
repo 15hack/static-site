@@ -3,7 +3,7 @@ import re
 import ssl
 import sys
 from os import rename
-from os.path import isfile
+from os.path import isfile, realpath
 
 import requests
 
@@ -115,3 +115,9 @@ n = Nginx(db, "_out/")
 n.close()
 db.close()
 dwn.close()
+
+print(
+    "sudo ln -s",
+    realpath("_out/nginx/sites.nginx"),
+    "/etc/nginx/sites-enabled/sites.nginx"
+)
