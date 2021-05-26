@@ -141,8 +141,8 @@ class DWN:
                 f.write(l+"\n")
 
     def getAsset(self, asset, target=None):
-        release, asset = asset.split()
-        url = "https://api.github.com/repos/{}/releases/latest".format(release)
+        repo, asset = asset.split()
+        url = "https://api.github.com/repos/{}/releases/latest".format(repo)
         r = requests.get(url)
         r = r.json()
         for a in r["assets"]:
